@@ -52,7 +52,7 @@ Three containers, one Elastic IP, one pipeline.
  └──────────────────────────────────────────────────────────────┘
 ```
 
-**Reading this diagram:** the browser only ever knows about one address, the Elastic IP. Everything past the Internet Gateway happens inside a single EC2 instance, and `chat-nginx` is the only container that's actually reachable from outside it. `chat-backend` and `chat-redis` are drawn *inside* the same box on purpose, they exist only on the internal Docker network and have no path to the public internet at all.
+**Reading this diagram:** The browser only ever knows about one address, the Elastic IP. Everything past the Internet Gateway happens inside a single EC2 instance, and `chat-nginx` is the only container that's actually reachable from outside it. `chat-backend` and `chat-redis` are drawn *inside* the same box on purpose, they exist only on the internal Docker network and have no path to the public internet at all.
 
 Nginx is the only container with a published port (`80:80`). The backend and Redis both use `expose` rather than `ports`, so they're reachable from other containers on the Docker network but have zero exposure to the outside world, even if someone scanned every port on the public IP, they'd only ever find port 80 open (and port 22 for SSH, locked to my own IP in the security group).
 
@@ -62,13 +62,13 @@ Nginx is the only container with a published port (`80:80`). The backend and Red
 
 There are three services defined in `docker-compose.yml`, and each one has a different job:
 
-**`chat-backend`** — built from the local `Dockerfile`. Starts from `python:3.11-slim`, installs the dependencies in `requirements.txt`, copies in `main.py`, and runs it with uvicorn. This is the only container that's actually built from source here, the other two just use ready-made images off the shelf. It doesn't publish a port to the host; it only `expose`s port 8000, meaning other containers can reach it, nothing outside Docker can.
+**`chat-backend`** - Built from the local `Dockerfile`. Starts from `python:3.11-slim`, installs the dependencies in `requirements.txt`, copies in `main.py`, and runs it with uvicorn. This is the only container that's actually built from source here, the other two just use ready-made images off the shelf. It doesn't publish a port to the host it only `expose`s port 8000, meaning other containers can reach it, nothing outside Docker can.
 
-**`chat-nginx`** — uses the official `nginx:alpine` image straight from Docker Hub, no custom build needed. Two things get mounted into it as volumes: the `frontend/` folder (so it has the actual HTML/CSS/JS to serve) and `nginx.conf` (so it knows how to route requests). This is the only container that publishes a port to the outside world — `80:80`.
+**`chat-nginx`** - Uses the official `nginx:alpine` image straight from Docker Hub, no custom build needed. Two things get mounted into it as volumes: the `frontend/` folder (so it has the actual HTML/CSS/JS to serve) and `nginx.conf` (so it knows how to route requests). This is the only container that publishes a port to the outside world `80:80`.
 
-**`chat-redis`** — also a stock image (`redis:alpine`), no custom config. Currently just running, not yet used by the app (see the Bonus section for why).
+**`chat-redis`** - Also a stock image (`redis:alpine`), no custom config. Currently just running, not yet used by the app (see the Bonus section for why).
 
-All three are set to `restart: always`, which means Docker will bring a container back up automatically if it crashes, if it's stopped, or if the whole EC2 instance reboots — you don't need to SSH in and manually start anything after a restart.
+All three are set to `restart: always`, which means Docker will bring a container back up automatically if it crashes, if it's stopped, or if the whole EC2 instance reboots, you don't need to SSH in and manually start anything after a restart.
 
 To bring the whole stack up: `docker compose up -d --build` this builds the backend image fresh, pulls the other two if they're not already local, creates a shared network for all three, and starts them in the background.
 
@@ -86,11 +86,11 @@ The one gotcha worth knowing: **that internal IP can change.** It happened durin
 
 ---
 
-## 5. The bugs — what was actually broken
+## 5. The bugs: What was actually broken
 
 The repo came with four separate issues spread across the Dockerfile, docker-compose.yml, and nginx.conf. None of them were backend bugs, the FastAPI code was correct the whole time, which matched what the assignment said. Here's what I found, in the order I found them.
 
-### Bug 1 — Backend only listening on `127.0.0.1`
+### Bug 1 - Backend only listening on `127.0.0.1`
 
 ```dockerfile
 CMD ["uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"]
@@ -100,7 +100,7 @@ Uvicorn was bound to loopback, which inside a container means "reachable only fr
 
 **Fix:** changed the bind address to `0.0.0.0`, which listens on all interfaces, including the internal Docker network interface.
 
-### Bug 2 — Frontend volume mount was commented out
+### Bug 2 - Frontend volume mount was commented out
 
 ```yaml
 volumes:
@@ -210,7 +210,7 @@ Steps taken to get there (documented for reproducibility):
 
 ## 9. Bonus work
 
-### CloudWatch Monitoring — implemented
+### CloudWatch Monitoring: Implemented
 
 Went further than basic EC2 metrics here, since those don't include memory or disk usage by default.
 
@@ -224,19 +224,19 @@ An IAM role with `CloudWatchAgentServerPolicy` is attached to the instance so th
 
 **Screenshots from CloudWatch Logs Insights:**
 
-**1. `chat-nginx` container logs** — the request-level traffic hitting the app. Shows the Nginx entrypoint config steps on container start, followed by real incoming requests (`GET /`, `GET /favicon.ico`) with status codes, and further down the raw scanning traffic mentioned above showing up as garbled bytes instead of a clean HTTP request.
+**1. `chat-nginx` container logs** The request-level traffic hitting the app. Shows the Nginx entrypoint config steps on container start, followed by real incoming requests (`GET /`, `GET /favicon.ico`) with status codes, and further down the raw scanning traffic mentioned above showing up as garbled bytes instead of a clean HTTP request.
 
 ![Nginx container logs in CloudWatch](images/nginx-logs.jpg)
 
-**2. `chat-backend` container logs** — the application-level view, showing uvicorn starting up on `0.0.0.0:8000`, followed by the actual WebSocket events that prove the chat is working: `WebSocket /ws [accepted]` and `connection open` each time a client connects.
+**2. `chat-backend` container logs** The application-level view, showing uvicorn starting up on `0.0.0.0:8000`, followed by the actual WebSocket events that prove the chat is working: `WebSocket /ws [accepted]` and `connection open` each time a client connects.
 
 ![Backend container logs in CloudWatch](images/backend-logs.jpg)
 
-**3. EC2 system logs (`/var/log/syslog` via the CloudWatch Agent)** — this is the instance-level log stream, separate from the two above. It shows the CloudWatch Agent itself starting up on boot: detecting it's running on EC2, reading its config, and validating it before it starts shipping metrics and logs.
+**3. EC2 system logs (`/var/log/syslog` via the CloudWatch Agent)** This is the instance-level log stream, separate from the two above. It shows the CloudWatch Agent itself starting up on boot: detecting it's running on EC2, reading its config, and validating it before it starts shipping metrics and logs.
 
 ![EC2 system logs shipped via CloudWatch Agent](images/cloudwatch-agent-system-logs.jpg)
 
-### Redis — provisioned, intentionally not wired in
+### Redis: Provisioned, intentionally not wired in
 
 Added a `redis:alpine` container to `docker-compose.yml`, internal-only (same principle as the backend never touches the internet).
 
@@ -244,7 +244,7 @@ Right now there's just one backend, and it keeps track of connected users purely
 
 I didn't actually wire this into `main.py`, since that would mean touching the backend's message-broadcasting code and the assignment was clear that backend code was off-limits. So this is here as the groundwork for later, not a working feature yet. Didn't add `redis` to `requirements.txt` either, since nothing's using it.
 
-### Load balancer architecture — how it would work for this project
+### Load balancer architecture: How it would work for this project
 
 Right now there's one Nginx + one backend on one EC2 instance. If I needed to handle more traffic, I'd put an **AWS Application Load Balancer** in front of multiple copies of this same setup each running its own Nginx + backend, all behind the one load balancer, so users just hit one address and the ALB decides which instance actually handles them.
 
@@ -254,7 +254,7 @@ A few things I'd need to keep in mind specifically for this app:
 - **Instances still need to talk to each other.** Sticky sessions mean two chatting users could land on two different instances. This is exactly what Redis (already provisioned here) would solve every instance publishes and subscribes to the same channel, so a message reaches everyone regardless of which instance they're on.
 - **Health checks shouldn't hit `/ws`.** The ALB needs to know an instance is healthy, but a plain check on `/` is better than pinging the WebSocket path, so it doesn't interfere with real connections.
 
-### Auto-scaling approach — my approach for this project
+### Auto-scaling approach: My approach for this project
 
 If this chat app needed to handle more users than one EC2 instance could comfortably manage, here's specifically what I'd do: put the current instance's setup — Ubuntu, Docker pre-installed, the security group, the IAM role into a **launch template**, then put that behind an **Auto Scaling Group**. That way, instead of me manually launching a second EC2 instance and setting it up by hand the way I did this one, AWS just spins up identical copies on its own whenever they're needed.
 
