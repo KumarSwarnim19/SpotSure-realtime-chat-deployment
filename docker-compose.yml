@@ -7,6 +7,13 @@ services:
     expose:
       - "8000"
     restart: always
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-south-1
+        awslogs-group: /chat-app/backend
+        awslogs-create-group: "true"
+        awslogs-stream: backend
 
   nginx:
     image: nginx:alpine
@@ -20,3 +27,11 @@ services:
     depends_on:
       - backend
     restart: always
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-south-1
+        awslogs-group: /chat-app/nginx
+        awslogs-create-group: "true"
+        awslogs-stream: nginx
+
