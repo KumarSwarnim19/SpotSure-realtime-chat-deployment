@@ -190,6 +190,7 @@ git clone https://github.com/KumarSwarnim19/SpotSure-realtime-chat-deployment.gi
 cd SpotSure-realtime-chat-deployment
 docker compose up -d --build
 ```
+App available at `http://localhost`.
 
 **Cloud — live right now:**
 
@@ -220,6 +221,20 @@ Went further than basic EC2 metrics here, since those don't include memory or di
 An unexpected but genuinely useful side effect of turning this on: the Nginx logs also picked up raw TLS handshake bytes hitting port 80 from random IPs background internet scanning traffic that's constantly probing public IPs. Not an incident, just normal internet noise, but it's the kind of thing you only get visibility into once you're actually shipping logs somewhere.
 
 An IAM role with `CloudWatchAgentServerPolicy` is attached to the instance so the agent (and Docker's logging driver) can actually push data to CloudWatch this is granted at the instance level, not via long-lived credentials on disk.
+
+**Screenshots from CloudWatch Logs Insights:**
+
+**1. `chat-nginx` container logs** — the request-level traffic hitting the app. Shows the Nginx entrypoint config steps on container start, followed by real incoming requests (`GET /`, `GET /favicon.ico`) with status codes, and further down the raw scanning traffic mentioned above showing up as garbled bytes instead of a clean HTTP request.
+
+![Nginx container logs in CloudWatch](images/nginx-logs.jpg)
+
+**2. `chat-backend` container logs** — the application-level view, showing uvicorn starting up on `0.0.0.0:8000`, followed by the actual WebSocket events that prove the chat is working: `WebSocket /ws [accepted]` and `connection open` each time a client connects.
+
+![Backend container logs in CloudWatch](images/backend-logs.jpg)
+
+**3. EC2 system logs (`/var/log/syslog` via the CloudWatch Agent)** — this is the instance-level log stream, separate from the two above. It shows the CloudWatch Agent itself starting up on boot: detecting it's running on EC2, reading its config, and validating it before it starts shipping metrics and logs.
+
+![EC2 system logs shipped via CloudWatch Agent](images/cloudwatch-agent-system-logs.jpg)
 
 ### Redis — provisioned, intentionally not wired in
 
