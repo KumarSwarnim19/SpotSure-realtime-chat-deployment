@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   backend:
     build: .
@@ -34,4 +33,14 @@ services:
         awslogs-group: /chat-app/nginx
         awslogs-create-group: "true"
         awslogs-stream: nginx
+
+
+  redis:
+    image: redis:alpine
+    container_name: chat-redis
+    expose:
+      - "6379"
+    restart: always
+
+
 
