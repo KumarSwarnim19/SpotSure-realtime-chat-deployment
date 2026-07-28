@@ -2,6 +2,7 @@
 
 Welcome! In this assignment, you are tasked with fixing a broken staging environment for our Real-Time Chat web application. 
 
+echo "<!-- CI/CD test comment -->" >> README.md
 A junior developer recently attempted to containerize this application using Docker and NGINX, but the deployment is currently failing on multiple fronts. Your job is to debug their configuration files and get the application fully operational via Docker Compose.
 
 ## System Architecture
