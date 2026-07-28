@@ -190,7 +190,6 @@ git clone https://github.com/KumarSwarnim19/SpotSure-realtime-chat-deployment.gi
 cd SpotSure-realtime-chat-deployment
 docker compose up -d --build
 ```
-App available at `http://localhost`.
 
 **Cloud — live right now:**
 
